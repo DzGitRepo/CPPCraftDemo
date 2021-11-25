@@ -1,12 +1,13 @@
 /*
     This is an implementation of the API of a simple database table.
     Note:   can switch between the new and the original implementation below; 
-            when tested on 1M records, the new one is about 8x faster in Debug, 
+            when tested on 1M records, the new one was shown to be about 8x faster in Debug, 
             and about 35% faster in Release.
 */
 
 #include <algorithm>
 #include <iterator>
+#include <unordered_map>
 
 #include "qb.h"
 #include "comparator.h"
@@ -28,25 +29,60 @@ namespace QB {
         records - the initial set of records to filter
         matchString - the string to search for
     */
+
+    using RecordFilter = std::function<bool(const Record&)>;
+
+    class ColumnFilter {
+
+    public:
+
+        ColumnFilter() = default;
+
+        ColumnFilter(int columnIndex) :
+            _columnIndex(columnIndex) {
+        }
+
+        void SetMatchString(const std::string& matchString) {
+            _matchString = matchString;
+        }
+
+        RecordFilter GetRecordFilter() const {
+            switch (_columnIndex) {
+            case 0: return ColumnComparator<decltype(Record::column0)>(&Record::column0, _matchString);
+            case 1: return ColumnComparator<decltype(Record::column1)>(&Record::column1, _matchString);
+            case 2: return ColumnComparator<decltype(Record::column2)>(&Record::column2, _matchString);
+            case 3: return ColumnComparator<decltype(Record::column3)>(&Record::column3, _matchString);
+            };
+        }
+
+    private:
+        
+        int _columnIndex{};
+        std::string _matchString;
+    };
+
+    static std::unordered_map<std::string, ColumnFilter> column_filter{
+        { "column0", ColumnFilter(0)},
+        { "column1", ColumnFilter(1)},
+        { "column2", ColumnFilter(2)},
+        { "column3", ColumnFilter(3)}
+    };
+
+    /**
+        Return records that contains a string in the StringValue field
+        records - the initial set of records to filter
+        matchString - the string to search for
+
+        Note: the empty match string matches all.
+    */
     RecordCollection FindMatchingRecords(const RecordCollection& records, const std::string& columnName, const std::string& matchString)
     {
 #if NEW_IMPL
 
-        std::function<bool(const Record&)> filter;
-
-        // Select the filter.
-        if (columnName == "column0")
-            filter = ColumnComparator<decltype(Record::column0)>(&Record::column0, matchString);
-        else if (columnName == "column1")
-            filter = ColumnComparator<decltype(Record::column1)>(&Record::column1, matchString);
-        else if (columnName == "column2")
-            filter = ColumnComparator<decltype(Record::column2)>(&Record::column2, matchString);
-        else if (columnName == "column3")
-            filter = ColumnComparator<decltype(Record::column3)>(&Record::column3, matchString);
-        else
-            filter = [](const Record&) {
-            return false;
-        };
+        // Obtain the appropriate column filter.
+        auto column { column_filter[columnName] };
+        column.SetMatchString(matchString);
+        auto filter{ column.GetRecordFilter() };
 
         // Filter the records.
         RecordCollection result;

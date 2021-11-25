@@ -33,6 +33,8 @@ namespace QB {
         Return records that contains a string in the StringValue field
         records - the initial set of records to filter
         matchString - the string to search for
+
+        Note: the empty match string matches all.
     */
     RecordCollection FindMatchingRecords(const RecordCollection& records, const std::string& columnName, const std::string& matchString);
 
