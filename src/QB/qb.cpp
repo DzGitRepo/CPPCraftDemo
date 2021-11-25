@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iterator>
 #include <unordered_map>
+#include <stdexcept>
 
 #include "qb.h"
 #include "comparator.h"
@@ -52,7 +53,8 @@ namespace QB {
             case 1: return ColumnComparator<decltype(Record::column1)>(&Record::column1, _matchString);
             case 2: return ColumnComparator<decltype(Record::column2)>(&Record::column2, _matchString);
             case 3: return ColumnComparator<decltype(Record::column3)>(&Record::column3, _matchString);
-            };
+            default: return [](const Record&) { return false; };
+            }
         }
 
     private:
@@ -80,15 +82,18 @@ namespace QB {
 #if NEW_IMPL
 
         // Obtain the appropriate column filter.
-        auto column { column_filter[columnName] };
+        auto it = column_filter.find(columnName);
+        if (it == std::end(column_filter))
+            throw std::runtime_error(std::string(__func__) + ": invalid column name");
+        auto column { it->second };
         column.SetMatchString(matchString);
-        auto filter{ column.GetRecordFilter() };
+        auto filter { column.GetRecordFilter() };
 
         // Filter the records.
         RecordCollection result;
-        std::copy_if(records.begin(), records.end(), std::back_inserter(result), filter);
+        std::copy_if(std::begin(records), std::end(records), std::back_inserter(result), filter);
 
-        return result; // note: copy elision (RVO) is at worke here
+        return result; // note: the copy elision (RVO) is at worke here
 
 #else // the original version
 
