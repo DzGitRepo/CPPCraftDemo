@@ -1,8 +1,8 @@
 /*
     This is an implementation of the API of a simple database table.
     Note:   can switch between the new and the original implementation below; 
-            when tested on 1M records, the new one was shown to be about 8x faster in Debug, 
-            and about 35% faster in Release.
+            when tested on 1M records, the new one was shown to be about 4x faster
+            when built in the Release mode. 
 */
 
 #include <algorithm>
@@ -43,16 +43,12 @@ namespace QB {
             _columnIndex(columnIndex) {
         }
 
-        void SetMatchString(const std::string& matchString) {
-            _matchString = matchString;
-        }
-
-        RecordFilter GetRecordFilter() const {
+        RecordFilter GetRecordFilter(const std::string& matchString) const {
             switch (_columnIndex) {
-            case 0: return ColumnComparator<decltype(Record::column0)>(&Record::column0, _matchString);
-            case 1: return ColumnComparator<decltype(Record::column1)>(&Record::column1, _matchString);
-            case 2: return ColumnComparator<decltype(Record::column2)>(&Record::column2, _matchString);
-            case 3: return ColumnComparator<decltype(Record::column3)>(&Record::column3, _matchString);
+            case 0: return ColumnComparator<decltype(Record::column0)>(&Record::column0, matchString);
+            case 1: return ColumnComparator<decltype(Record::column1)>(&Record::column1, matchString);
+            case 2: return ColumnComparator<decltype(Record::column2)>(&Record::column2, matchString);
+            case 3: return ColumnComparator<decltype(Record::column3)>(&Record::column3, matchString);
             default: return [](const Record&) { return false; };
             }
         }
@@ -60,7 +56,6 @@ namespace QB {
     private:
         
         int _columnIndex{};
-        std::string _matchString;
     };
 
     static std::unordered_map<std::string, ColumnFilter> column_filter{
@@ -85,9 +80,8 @@ namespace QB {
         auto it = column_filter.find(columnName);
         if (it == std::end(column_filter))
             throw std::runtime_error(std::string(__func__) + ": invalid column name");
-        auto column { it->second };
-        column.SetMatchString(matchString);
-        auto filter { column.GetRecordFilter() };
+        auto& column { it->second };
+        auto filter { column.GetRecordFilter(matchString) };
 
         // Filter the records.
         RecordCollection result;
@@ -129,7 +123,7 @@ namespace QB {
 
         auto it = std::find_if(std::begin(records), std::end(records), [id](const Record& rec) {
             return rec.column0 == id;
-            });
+        });
 
         if (it != std::end(records))
             records.erase(it);

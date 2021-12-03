@@ -14,56 +14,61 @@ namespace Framework {
         A base class, needed mostly to define the public setter.
     */
 
-    class MatchString {
+    template<class T>
+    class MatchValue {
 
     public:
 
-        MatchString(const std::string& matchString = "") :
-            _matchString(matchString) {
+        MatchValue(std::function<T(std::string)> conv, const std::string& matchString = "") :
+            _matchValue(conv(matchString)),
+            _conv(conv) {
         }
 
         /**
             This allows for a comparator to be reused.
         */
-        void SetMatchString(const std::string& matchString) {
-            _matchString = matchString;
+        void SetMatchValue(const std::string& matchString) {
+            _matchValue = _conv(matchString);
         }
 
     protected:
 
-        std::string _matchString;
+        T _matchValue;
+
+    private:
+
+        std::function<T(std::string)> _conv;
     };
 
     /**
         The default value comparator template (does nothing by itsef).
     */
     template<class T>
-    class ValueComparator : public MatchString {
+    class ValueComparator : public MatchValue<T> {
     
     public:
     
         using value_type = T;
-        using Base = MatchString;
+        using Base = MatchValue<value_type>;
     };
 
     /**
         The value comparator template oveload for the type 'long'.
     */
     template<> 
-    class ValueComparator<long> : public MatchString {
+    class ValueComparator<long> : public MatchValue<long> {
 
     public:
 
         using value_type = long;
-        using Base = MatchString;
+        using Base = MatchValue<value_type>;
 
         ValueComparator(const std::string& matchString = "") :
-            Base(matchString) {
+            Base([](const std::string& matchString) { return std::stol(matchString); }, matchString) {
         }
 
         bool operator()(value_type value) const {
-            long matchValue = std::stol(_matchString); // note: can throw
-            return matchValue == value;
+            return _matchValue == value;
         }
     };
 
@@ -71,20 +76,19 @@ namespace Framework {
         Value comparator oveload for the type 'uint32_t'.
     */
     template<> 
-    class ValueComparator<uint32_t> : public MatchString {
+    class ValueComparator<uint32_t> : public MatchValue<uint32_t> {
 
     public:
 
         using value_type = uint32_t;
-        using Base = MatchString;
+        using Base = MatchValue<value_type>;
 
         ValueComparator(const std::string& matchString = "") :
-            Base(matchString) {
+            Base([](const std::string& matchString) { return std::stoul(matchString); }, matchString) {
         }
 
         bool operator()(value_type value) const {
-            long matchValue = std::stoul(_matchString); // note: can throw
-            return matchValue == value;
+            return _matchValue == value;
         }
     };
 
@@ -92,19 +96,19 @@ namespace Framework {
         The value comparator template oveload for the type 'std::string'.
     */
     template<> 
-    class ValueComparator<std::string> : public MatchString {
+    class ValueComparator<std::string> : public MatchValue<std::string> {
 
     public:
 
         using value_type = std::string;
-        using Base = MatchString;
+        using Base = MatchValue<value_type>;
 
         ValueComparator(const std::string& matchString = "") :
-            Base(matchString) {
+            Base([](const std::string& matchString) { return matchString; }, matchString) {
         }
 
         bool operator()(const value_type& value) const {
-            return value.find(_matchString) != std::string::npos;
+            return value.find(_matchValue) != std::string::npos;
         }
     };
 
